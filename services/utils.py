@@ -1,6 +1,9 @@
+import csv
 import os
+from io import StringIO
 
 from fastapi import HTTPException
+from fastapi.responses import StreamingResponse
 
 from dto.UploadDTO import UploadDTO
 from dto.StatusDTO import StatusDTO
@@ -49,3 +52,14 @@ def upload_to_s3(file_path, bucket_name):
         s3_client.upload_file(file, bucket_name, file_name, extra_args={"ACL": "public-read"})
         uploaded_url = f"https://{bucket_name}.s3.amazonaws.com/{file_name}"
         return uploaded_url
+
+
+def generate_csv_response(record):
+    fields = ["S. No.", "Product Name", "Input Image Urls", "Output Image Urls"]
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=fields)
+    writer.writeheader()
+    writer.writerows(record["file_contents"])
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv",
+                             headers={"Content-Disposition": f"attachment; filename={record['request_id']}.csv"})
