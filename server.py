@@ -6,7 +6,7 @@ import uuid
 from fastapi import FastAPI, HTTPException, UploadFile
 
 from dto.StatusDTO import StatusDTO, StatusEnum
-from services.utils import validate_csv, save_to_mongo, publish_to_redis, get_from_mongo
+from services.utils import validate_csv, save_to_mongo, push_to_redis, get_from_mongo
 
 app = FastAPI()
 
@@ -24,7 +24,7 @@ async def upload_csv_file(file: UploadFile) -> StatusDTO:
     save_to_mongo(request_id, csv_contents, "uploads")
     current_status = save_to_mongo(request_id, StatusEnum.PENDING.value, "requests")
 
-    publish_to_redis(request_id)
+    push_to_redis(request_id)
 
     return current_status
 

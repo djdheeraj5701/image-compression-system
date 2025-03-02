@@ -28,5 +28,14 @@ def get_from_mongo(request_id, collection_name):
     return collection.find_one({"request_id": request_id})
 
 
-def publish_to_redis(request_id):
-    redis_client.publish("uploads", request_id)
+def update_in_mongo(request_id, content, collection_name):
+    collection = mongo_client["image_compression"][collection_name]
+    collection.find_one_and_update({"request_id": request_id}, {"$set": content})
+
+
+def push_to_redis(request_id):
+    redis_client.rpush("uploads", request_id)
+
+
+def pull_from_redis():
+    return redis_client.blpop("uploads")
