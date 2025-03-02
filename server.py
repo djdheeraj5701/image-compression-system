@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from starlette.background import BackgroundTasks
 
 from dto.StatusDTO import StatusDTO, StatusEnum
-from image_compression_job import process_request
+from image_compression_worker import process_request
 from services.utils import validate_csv, save_to_mongo, get_from_mongo, generate_csv_response
 
 app = FastAPI()
