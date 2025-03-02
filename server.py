@@ -5,15 +5,21 @@ import uuid
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile
+from starlette.background import BackgroundTasks
 
 from dto.StatusDTO import StatusDTO, StatusEnum
-from services.utils import validate_csv, save_to_mongo, push_to_redis, get_from_mongo, generate_csv_response
+from image_compression_job import process_request
+from services.utils import validate_csv, save_to_mongo, get_from_mongo, generate_csv_response
 
 app = FastAPI()
 
 
 @app.post("/api/v1/upload")
-async def upload_csv_file(file: UploadFile) -> StatusDTO:
+async def upload_csv_file(file: UploadFile, webhook_url: str, background_tasks: BackgroundTasks) -> StatusDTO:
+    """
+    Accepts only CSV files, Validate the Formatting, creates a task to process csv
+    returns a unique request ID with status PENDING if successful
+    """
     if file.content_type != "text/csv":
         raise HTTPException(status_code=400, detail="Invalid file type. Only CSV files are accepted.")
 
@@ -25,13 +31,15 @@ async def upload_csv_file(file: UploadFile) -> StatusDTO:
     save_to_mongo(request_id, csv_contents, "uploads")
     current_status = save_to_mongo(request_id, StatusEnum.PENDING.value, "requests")
 
-    push_to_redis(request_id)
-
+    background_tasks.add_task(process_request, request_id, webhook_url)
     return current_status
 
 
 @app.get("/api/v1/status/{request_id}")
 async def get_status(request_id: str) -> StatusDTO:
+    """
+    Allows users to query processing status with the request ID
+    """
     record = get_from_mongo(request_id, "requests")
     if record:
         return record
@@ -40,6 +48,9 @@ async def get_status(request_id: str) -> StatusDTO:
 
 @app.get("/api/v1/output/{request_id}")
 async def get_output(request_id: str) -> UploadFile:
+    """
+    Allows user to fetch output if webhook did not receive notification
+    """
     status_record = await get_status(request_id)
     if status_record["status"] == "COMPLETED":
         record = get_from_mongo(request_id, "uploads")

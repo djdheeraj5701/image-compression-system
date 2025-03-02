@@ -2,12 +2,13 @@ import csv
 import os
 from io import StringIO
 
+import requests
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 
 from dto.UploadDTO import UploadDTO
 from dto.StatusDTO import StatusDTO
-from services.clients import mongo_client, redis_client, s3_client
+from services.clients import mongo_client, s3_client
 
 
 def validate_csv(csv_contents: list):
@@ -35,15 +36,7 @@ def get_from_mongo(request_id, collection_name):
 
 def update_in_mongo(request_id, content, collection_name):
     collection = mongo_client["image_compression"][collection_name]
-    collection.find_one_and_update({"request_id": request_id}, {"$set": content})
-
-
-def push_to_redis(request_id):
-    redis_client.rpush("uploads", request_id)
-
-
-def pull_from_redis():
-    return redis_client.blpop("uploads")
+    return collection.find_one_and_update({"request_id": request_id}, {"$set": content})
 
 
 def upload_to_s3(file_path, bucket_name):
@@ -63,3 +56,10 @@ def generate_csv_response(record):
     output.seek(0)
     return StreamingResponse(output, media_type="text/csv",
                              headers={"Content-Disposition": f"attachment; filename={record['request_id']}.csv"})
+
+
+def send_webhook_notification(url, record):
+    try:
+        requests.post(url, generate_csv_response(record))
+    except requests.exceptions.RequestException as e:
+        print(f"Webhook failed: {e}")

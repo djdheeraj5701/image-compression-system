@@ -4,5 +4,4 @@ python-multipart
 requests
 pillow
 pymongo
-redis
 boto3

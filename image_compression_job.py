@@ -5,23 +5,18 @@ import requests
 from PIL import Image
 
 from dto.StatusDTO import StatusEnum
-from services.utils import pull_from_redis, get_from_mongo, update_in_mongo, upload_to_s3
+from services.utils import get_from_mongo, update_in_mongo, upload_to_s3, send_webhook_notification
 
 
-async def perform_compression():
-    while True:
-        message = pull_from_redis()
-        request_id = message[1]
-        await process_request(request_id)
-
-
-async def process_request(request_id):
+async def process_request(request_id, webhook_url):
     record = get_from_mongo(request_id, "uploads")
     update_in_mongo(request_id, {"status": StatusEnum.IN_PROGRESS.value}, "requests")
 
     updated_contents = await process_record(record)
-    update_in_mongo(request_id, {"file_contents": updated_contents}, "uploads")
+    updated_record = update_in_mongo(request_id, {"file_contents": updated_contents}, "uploads")
     update_in_mongo(request_id, {"status": StatusEnum.COMPLETED.value}, "requests")
+
+    send_webhook_notification(webhook_url, updated_record)
 
 
 async def process_record(record):
@@ -55,10 +50,3 @@ async def process_image(url, folder):
     with Image.open(input_path) as image:
         image.resize((int(image.size[0] / 2), int(image.size[1] / 2))).save(output_path)
         return upload_to_s3(output_path, bucket_name)
-
-loop = asyncio.new_event_loop()
-tasks = [
-    loop.create_task(perform_compression())
-]
-loop.run_until_complete(asyncio.wait(tasks))
-loop.close()

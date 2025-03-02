@@ -8,8 +8,7 @@ pip install -r requirements.txt
 
 python server.py
 
-------
+----
 
-venv\Scripts\activate
+http://localhost:8000/docs -> Returns documentation of all APIs
 
-python cron_job.py
