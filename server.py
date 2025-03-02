@@ -3,6 +3,7 @@ import csv
 import codecs
 import uuid
 
+import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile
 
 from dto.StatusDTO import StatusDTO, StatusEnum
@@ -35,3 +36,6 @@ async def get_status(request_id: str) -> StatusDTO:
     if record:
         return record
     raise HTTPException(status_code=404, detail="Request ID not found.")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

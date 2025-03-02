@@ -1,8 +1,10 @@
+import os
+
 from fastapi import HTTPException
 
 from dto.UploadDTO import UploadDTO
 from dto.StatusDTO import StatusDTO
-from services.clients import mongo_client, redis_client
+from services.clients import mongo_client, redis_client, s3_client
 
 
 def validate_csv(csv_contents: list):
@@ -39,3 +41,11 @@ def push_to_redis(request_id):
 
 def pull_from_redis():
     return redis_client.blpop("uploads")
+
+
+def upload_to_s3(file_path, bucket_name):
+    file_name = os.path.basename(file_path)
+    with open(file_path, "rb") as file:
+        s3_client.upload_file(file, bucket_name, file_name, extra_args={"ACL": "public-read"})
+        uploaded_url = f"https://{bucket_name}.s3.amazonaws.com/{file_name}"
+        return uploaded_url

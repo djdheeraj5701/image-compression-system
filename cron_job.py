@@ -1,12 +1,11 @@
 import asyncio
 import os
-from io import BytesIO
 
 import requests
 from PIL import Image
 
 from dto.StatusDTO import StatusEnum
-from services.utils import pull_from_redis, get_from_mongo, update_in_mongo
+from services.utils import pull_from_redis, get_from_mongo, update_in_mongo, upload_to_s3
 
 
 async def perform_compression():
@@ -41,23 +40,21 @@ async def process_images(image_urls, request_id, row_id):
 
 
 async def process_image(url, folder):
-    bucket_name = "/outputs"
+    bucket_name = "image_compression_bucket"
     response = requests.get(url)
 
     image_name = os.path.basename(url)
     if not os.path.exists(folder):
         os.makedirs(folder)
     input_path = f"{folder}/input-{image_name}"
-    output_path = f"{folder}/output-{image_name}"
+    output_path = f"{folder}/{image_name}"
 
-    file = open(input_path, "wb+")
-    file.write(response.content)
-    file.close()
+    with open(input_path, "wb+") as file:
+        file.write(response.content)
 
     with Image.open(input_path) as image:
         image.resize((int(image.size[0] / 2), int(image.size[1] / 2))).save(output_path)
-        return output_path
-
+        return upload_to_s3(output_path, bucket_name)
 
 loop = asyncio.new_event_loop()
 tasks = [
